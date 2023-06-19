@@ -8,8 +8,9 @@ const { join } = require('path');
 
 const { fetchFromGenius } = require('../lyrics-genius/back');
 const { isEnabled } = require('../../config/plugins');
-const { getImage } = require('../../providers/song-info');
+const { getImage, cleanupName } = require('../../providers/song-info');
 const { injectCSS } = require('../utils');
+const { cache } = require("../../providers/decorators")
 const {
   presets,
   cropMaxWidth,
@@ -33,13 +34,6 @@ const ffmpeg = require('@ffmpeg/ffmpeg').createFFmpeg({
   progress: () => {}, // console.log,
 });
 const ffmpegMutex = new Mutex();
-
-const cache = {
-  getCoverBuffer: {
-    buffer: null,
-    url: null,
-  },
-};
 
 const config = require('./config');
 
@@ -295,19 +289,10 @@ async function iterableStreamToMP3(
   }
 }
 
-async function getCoverBuffer(url) {
-  const store = cache.getCoverBuffer;
-  if (store.url === url) {
-    return store.buffer;
-  }
-  store.url = url;
-
+const getCoverBuffer = cache(async (url) => {
   const nativeImage = cropMaxWidth(await getImage(url));
-  store.buffer =
-    nativeImage && !nativeImage.isEmpty() ? nativeImage.toPNG() : null;
-
-  return store.buffer;
-}
+  return nativeImage && !nativeImage.isEmpty() ? nativeImage.toPNG() : null;
+});
 
 async function writeID3(buffer, metadata, sendFeedback) {
   try {
@@ -514,10 +499,10 @@ const getVideoId = (url) => {
 
 const getMetadata = (info) => ({
   id: info.basic_info.id,
-  title: info.basic_info.title,
-  artist: info.basic_info.author,
+  title: cleanupName(info.basic_info.title),
+  artist: cleanupName(info.basic_info.author),
   album: info.player_overlays?.browser_media_session?.album?.text,
-  image: info.basic_info.thumbnail[0].url,
+  image: info.basic_info.thumbnail?.find((t) => !t.url.endsWith('.webp'))?.url,
 });
 
 // This is used to bypass age restrictions

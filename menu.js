@@ -45,12 +45,16 @@ const mainMenuTemplate = (win) => {
 				...getAllPlugins().map((plugin) => {
 					const pluginPath = path.join(__dirname, "plugins", plugin, "menu.js")
 					if (existsSync(pluginPath)) {
+						let pluginLabel = plugin;
+						if (pluginLabel === "crossfade") {
+							pluginLabel = "crossfade [beta]";
+						}
 						if (!config.plugins.isEnabled(plugin)) {
-							return pluginEnabledMenu(plugin, "", true, refreshMenu);
+							return pluginEnabledMenu(plugin, pluginLabel, true, refreshMenu);
 						}
 						const getPluginMenu = require(pluginPath);
 						return {
-							label: plugin,
+							label: pluginLabel,
 							submenu: [
 								pluginEnabledMenu(plugin, "Enabled", true, refreshMenu),
 								{ type: "separator" },
@@ -58,7 +62,6 @@ const mainMenuTemplate = (win) => {
 							],
 						};
 					}
-
 					return pluginEnabledMenu(plugin);
 				}),
 			],
@@ -166,11 +169,11 @@ const mainMenuTemplate = (win) => {
 				{
 					label: "Single instance lock",
 					type: "checkbox",
-					checked: false,
+					checked: true,
 					click: (item) => {
-						if (item.checked && app.hasSingleInstanceLock())
+						if (!item.checked && app.hasSingleInstanceLock())
 							app.releaseSingleInstanceLock();
-						else if (!item.checked && !app.hasSingleInstanceLock())
+						else if (item.checked && !app.hasSingleInstanceLock())
 							app.requestSingleInstanceLock();
 					},
 				},
